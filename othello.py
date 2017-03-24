@@ -76,11 +76,10 @@ def off_board_check(x_pos, y_pos):
 
 def flatten_moves(all_moves, item):
 
-    for each in item:
-        print('flatten')
-        print(item)
-        if each != False:
-            all_moves += each
+    print('flatten')
+    print(item)
+    if False not in item:
+        all_moves += item
 
     print(all_moves)
     return all_moves
