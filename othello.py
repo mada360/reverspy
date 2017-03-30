@@ -26,7 +26,7 @@ def change_board(changes):
         return 0
 
     for change in changes:
-        if len(change) != 0:
+        if change and len(change) != 0:
             board_state[change[0]['x_pos'], change[0]['y_pos']] = change[1]
 
 
@@ -69,19 +69,18 @@ def get_input():
 
 # Ensures board checks avoid going off the board
 def off_board_check(x_pos, y_pos):
-    if x_pos < 0 or x_pos > 7 or y_pos <= 1 or y_pos > 7:
+    if x_pos < 0 or x_pos > 7 or y_pos < 1 or y_pos > 8:
+
         return True
     return False
 
 
+# Reduces lists into one dimensional lists.
 def flatten_moves(all_moves, item):
 
-    print('flatten')
-    print(item)
-    if False not in item:
+    if False not in item and len(item) > 1:
         all_moves += item
 
-    print(all_moves)
     return all_moves
 
 
@@ -89,11 +88,6 @@ def flatten_moves(all_moves, item):
 def move(colour):
     position = ''
     moved = False
-
-    opponent = 'W'
-
-    if colour == 'W':
-        opponent = 'B'
 
     while not moved:
         position = get_input()
@@ -104,46 +98,18 @@ def move(colour):
 
         position = (letters.index(position['x_pos']), position['y_pos'])
 
-        # moved = valid_move(position['x_pos'], position['y_pos'], colour)
-        vector_moves = list(map(lambda vec: check_direction(vec, colour, position, [], opponent), directions))
+        vector_moves = list(map(lambda vec: check_direction(
+            vec, colour, position, [], get_opponent(colour)), directions))
+
         reduced = reduce(flatten_moves, vector_moves)
-        print(len(reduced))
-        print('move')
-        print(reduced)
+
         if len(reduced) > 1:
             return reduced
         print('Not a valid move, please try again')
 
 
-# May be able to use check_direction to ensure flanking
-def flanking_move(x_pos, y_pos, colour):
-    local_disks = []
-    index = letters.index(x_pos)
-
-    x = -1
-    while x <= 1:
-        y = -1
-        while y <= 1:
-            if not off_board_check(index + x, y_pos + y):
-                local_disks.append(board_state[letters[(index + x)], y_pos + y])
-            y += 1
-        x += 1
-
-    if colour == 'W':
-        if 'B' in local_disks:
-            return True
-        else:
-            print("You must flank Black")
-            return False
-    elif colour == 'B':
-        if 'W' in local_disks:
-            return True
-        else:
-            print("You must flank White")
-            return False
-
-
-def check_direction(vector, player, pos, lst, find):
+# Checks all directions and returns a list of all possible moves and disks that could be changed.
+def check_direction(vector, player, pos, lst, opponent):
 
     lst.append(({'x_pos': letters[pos[0]], 'y_pos': pos[1]}, player))
 
@@ -159,54 +125,67 @@ def check_direction(vector, player, pos, lst, find):
         elif board_state[letters[pos[0]], pos[1]] == player:
             return lst
 
-        elif board_state[letters[pos[0]], pos[1]] == find:
-            return [lst[0]] + check_direction(vector, player, pos, lst[1:], find)
+        # If opponent disk found, add position to list
+        elif board_state[letters[pos[0]], pos[1]] == opponent:
+            return [lst[0]] + check_direction(vector, player, pos, lst[1:], opponent)
 
-    return []
+    return [False]
 
 
-def get_moves(colour):
+# Simply returns the opponent colour based on the current player
+def get_opponent(player):
+    if player == 'W':
+        return 'B'
+
+    return 'W'
+
+
+# Get a list of possible moves to be made
+def get_moves(player, opponent):
     vector_moves = []
+
+    # Check every blank space if there is a possible move
     for space in board_state:
         if board_state[space] == '.':
             position = (letters.index(space[0]), space[1])
-            vector_moves += list(map(lambda vec: check_direction(vec, colour, position, [], 'W'), directions))
+            vector_moves += list(map(lambda vec: check_direction(vec, player, position, [], opponent), directions))
+
+    if len(vector_moves) < 1:
+        print('No more moves')
+        return False
 
     reduced = reduce(flatten_moves, vector_moves)
 
-    print(reduced)
+    moves = []
+
+    for position in reduced:
+
+        if position and board_state[position[0]['x_pos'], position[0]['y_pos']] == '.':
+            if position not in moves:
+                moves.append(position)
+
+    return moves
 
 
-# The game loop
-def game():
-    # Set's the board for starting state
-    set_board()
-
-    # The game is now set to playing
-    playing = True
-
-    # Initial player is set, in reversi/othello this is black
-    player = 'B'
-
-    # Provide basic instructions to enter moves and exit the game
-    print("Type exit to quit. To make a move please use the following notation a1")
-
-    # A playing loop, currently the only means to end the game is to manually exit
-    while playing:
-        print(player + "'s go")
-        # colour -> player makes move -> move validated -> make change
-        display()
-        #get_moves(player)
-        # End game if user enters exit or quit
-        if change_board(move(player)) == 0:
-            print('exit code 0')
-            break
-
-        # Swap player turn
-        if player == 'B':
-            player = 'W'
-        else:
-            player = 'B'
+# Prints the available moves into a more readable format for the player.
+def display_moves(moves_lst):
+    for position in moves_lst:
+        print(position[0]['x_pos'], position[0]['y_pos'], end=", ", sep="")
+    print('')
 
 
-game()
+# Returns the player's score
+def score(player):
+    player_score = 0
+
+    for space in board_state:
+        if board_state[space] is player:
+            player_score += 1
+
+    return player_score
+
+
+# Prints the current score for both players
+def display_score(player, opponent):
+    print(player, score(player))
+    print(opponent, score(opponent))
